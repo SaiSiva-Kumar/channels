@@ -1,2 +1,0 @@
-https://www.latent.space/p/o1-skill-issue
-https://huggingface.co/docs/transformers/en/tasks/prompting
