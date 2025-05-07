@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 
 from pathlib import Path
 import os
+import dj_database_url
 
 
 
@@ -113,15 +114,10 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 DATABASES = {
-    'default': {
-        "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": "Channels_Data",
-        "USER": "channels_admin",
-        "PASSWORD": "5225avmT_admin",
-        "HOST": "127.0.0.1",
-        "PORT": "",
-    }
+    'default':  dj_database_url.parse(DATABASE_URL)
 }
 
 
