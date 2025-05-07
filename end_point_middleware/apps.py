@@ -8,7 +8,7 @@ class EndPointMiddlewareConfig(AppConfig):
     name = 'end_point_middleware'
 
     def ready(self):
-        cred_path = "E:/Downloads/sign-in-or-sign-up-58b7f-firebase-adminsdk-fbsvc-43dab7dd86.json"
+        cred_path = "FIREBASE_CREDENTIALS_JSON"
         if not firebase_admin._apps:
             cred = credentials.Certificate(cred_path)
             firebase_admin.initialize_app(cred)
