@@ -65,13 +65,13 @@ MIDDLEWARE = [
     'end_point_middleware.firebase_auth.verify_firebase_token'
 ]
 
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://192.168.0.132:3000",
+CORS_ALLOWED_ORIGINS = True
+
+
+CORS_ALLOW_HEADERS = [
+    'authorization',
+    'content-type',
 ]
-
-
-CORS_ALLOW_HEADERS = True
 
 
 ROOT_URLCONF = 'channels_main.urls'
