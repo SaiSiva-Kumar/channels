@@ -71,10 +71,7 @@ CORS_ALLOWED_ORIGINS = [
 ]
 
 
-CORS_ALLOW_HEADERS = [
-    'authorization',
-    'content-type',
-]
+CORS_ALLOW_HEADERS = True
 
 
 ROOT_URLCONF = 'channels_main.urls'
