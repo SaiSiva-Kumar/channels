@@ -1,1 +1,1 @@
-web: daphne channels_main.asgi:application
+web: daphne -b 0.0.0.0 -p $PORT channels_main.asgi:application
