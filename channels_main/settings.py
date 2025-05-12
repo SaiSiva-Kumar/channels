@@ -65,7 +65,10 @@ MIDDLEWARE = [
     'end_point_middleware.firebase_auth.verify_firebase_token'
 ]
 
-CORS_ALLOWED_ORIGINS = True
+CORS_ALLOWED_ORIGINS = [
+    "https://channels-ui-xi.vercel.app/",
+    "http://localhost:3000"
+]
 
 
 CORS_ALLOW_HEADERS = [
