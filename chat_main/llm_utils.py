@@ -1,30 +1,27 @@
 import requests
 import json
+import logging
 from django.conf import settings
 from channels.db import database_sync_to_async
 from create_channels.models import CreatorChannelData
 
+logger = logging.getLogger("channels")
 
 @database_sync_to_async
 def get_channel_info(channel_name):
     try:
         channel = CreatorChannelData.objects.get(channel_name=channel_name)
-        result = {
+        return {
             "description": channel.channel_description or "",
             "ban_reason": channel.ban_reason if channel.ban_reason else [],
             "timeout_reason": channel.time_out_reason if channel.time_out_reason else []
         }
-        print("DB_RESPONSE:", result)
-        return result
     except CreatorChannelData.DoesNotExist:
-        result = {
+        return {
             "description": "",
             "ban_reason": [],
             "timeout_reason": []
         }
-        print("DB_RESPONSE:", result)
-        return result
-
 
 @database_sync_to_async
 def check_message_with_llm(message, channel_data):
@@ -92,18 +89,16 @@ IMPORTANT: You must analyze each dimension thoroughly. A message must satisfy al
             return {"status": "approved"}
         data = response.json()
         reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
-        print("LLM_RESPONSE:", reply_text)
+        logger.info(f"LLM raw response (check_message_with_llm): {reply_text}")
         return json_safe(reply_text)
     except:
         return {"status": "approved"}
-
 
 def json_safe(text):
     try:
         return json.loads(text)
     except:
         return {"status": "approved"}
-
 
 @database_sync_to_async
 def explain_timeout_reason(message, timeout_reasons):
@@ -145,7 +140,7 @@ Only reply with the explanation string, no JSON, no formatting."""
         reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         reply_text = reply_text.strip()
         reply_text = reply_text.replace('\\"', '"')
-
+        logger.info(f"LLM raw response (explain_timeout_reason): {reply_text}")
         return reply_text
     except:
         return "No timeout rule was violated."
