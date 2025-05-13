@@ -5,18 +5,23 @@ from django.conf import settings
 from channels.db import database_sync_to_async
 from create_channels.models import CreatorChannelData
 
-logger = logging.getLogger("channels")
+logger = logging.getLogger("LLM_Response")
 
 @database_sync_to_async
 def get_channel_info(channel_name):
+    logger.info(f"Fetching channel info for: {channel_name}")
     try:
         channel = CreatorChannelData.objects.get(channel_name=channel_name)
-        return {
+        result = {
             "description": channel.channel_description or "",
             "ban_reason": channel.ban_reason if channel.ban_reason else [],
             "timeout_reason": channel.time_out_reason if channel.time_out_reason else []
         }
+        logger.info(f"Channel info retrieved successfully for {channel_name}")
+        logger.debug(f"Channel data: {result}")
+        return result
     except CreatorChannelData.DoesNotExist:
+        logger.warning(f"Channel not found: {channel_name}")
         return {
             "description": "",
             "ban_reason": [],
@@ -25,6 +30,8 @@ def get_channel_info(channel_name):
 
 @database_sync_to_async
 def check_message_with_llm(message, channel_data):
+    logger.info(f"Checking message with LLM: {message[:50]}{'...' if len(message) > 50 else ''}")
+    logger.debug(f"Channel data for LLM check: {channel_data}")
     prompt = f"""You are a content moderator analyzing messages in three dimensions. You must carefully analyze each of these dimensions separately.
 
 Channel Description:
@@ -80,18 +87,23 @@ IMPORTANT: You must analyze each dimension thoroughly. A message must satisfy al
     }
 
     try:
+        logger.debug(f"Sending request to OpenRouter API")
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload
         )
         if response.status_code != 200:
+            logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
             return {"status": "approved"}
         data = response.json()
         reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         logger.info(f"LLM raw response (check_message_with_llm): {reply_text}")
-        return json_safe(reply_text)
-    except:
+        result = json_safe(reply_text)
+        logger.info(f"Message moderation result: {result['status']}")
+        return result
+    except Exception as e:
+        logger.exception(f"Error in LLM request: {str(e)}")
         return {"status": "approved"}
 
 def json_safe(text):
@@ -102,6 +114,8 @@ def json_safe(text):
 
 @database_sync_to_async
 def explain_timeout_reason(message, timeout_reasons):
+    logger.info(f"Explaining timeout reason for message: {message[:50]}{'...' if len(message) > 50 else ''}")
+    logger.debug(f"Timeout reasons: {timeout_reasons}")
     print(message, timeout_reasons)
     prompt = f"""You are a content moderation assistant. A user sent the following message:
 
@@ -129,12 +143,14 @@ Only reply with the explanation string, no JSON, no formatting."""
     }
 
     try:
+        logger.debug("Sending request to OpenRouter API for timeout explanation")
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers=headers,
             json=payload
         )
         if response.status_code != 200:
+            logger.error(f"OpenRouter API error in timeout explanation: {response.status_code} - {response.text}")
             return "No timeout rule was violated."
         data = response.json()
         reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
@@ -142,5 +158,6 @@ Only reply with the explanation string, no JSON, no formatting."""
         reply_text = reply_text.replace('\\"', '"')
         logger.info(f"LLM raw response (explain_timeout_reason): {reply_text}")
         return reply_text
-    except:
+    except Exception as e:
+        logger.exception(f"Error in timeout explanation: {str(e)}")
         return "No timeout rule was violated."
