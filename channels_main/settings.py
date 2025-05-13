@@ -97,7 +97,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'channels_main.wsgi.application'
-OPENROUTER_API_KEY = "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"
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 
 ASGI_APPLICATION = "channels_main.asgi.application"
 
