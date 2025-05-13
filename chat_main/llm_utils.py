@@ -9,17 +9,21 @@ from create_channels.models import CreatorChannelData
 def get_channel_info(channel_name):
     try:
         channel = CreatorChannelData.objects.get(channel_name=channel_name)
-        return {
+        result = {
             "description": channel.channel_description or "",
             "ban_reason": channel.ban_reason if channel.ban_reason else [],
             "timeout_reason": channel.time_out_reason if channel.time_out_reason else []
         }
+        print("DB_RESPONSE:", result)
+        return result
     except CreatorChannelData.DoesNotExist:
-        return {
+        result = {
             "description": "",
             "ban_reason": [],
             "timeout_reason": []
         }
+        print("DB_RESPONSE:", result)
+        return result
 
 
 @database_sync_to_async
@@ -88,6 +92,7 @@ IMPORTANT: You must analyze each dimension thoroughly. A message must satisfy al
             return {"status": "approved"}
         data = response.json()
         reply_text = data.get("choices", [{}])[0].get("message", {}).get("content", "")
+        print("LLM_RESPONSE:", reply_text)
         return json_safe(reply_text)
     except:
         return {"status": "approved"}
