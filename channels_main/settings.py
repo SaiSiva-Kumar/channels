@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'LLM_response',
     'end_point_middleware',
     'create_channels',
     'chat_main',
