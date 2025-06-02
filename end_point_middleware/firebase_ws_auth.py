@@ -4,6 +4,7 @@ from create_channels.models import ChannelInvitation, CreatorChannelData
 from chat_main.models import ChatMessage, UserModeration
 from asgiref.sync import sync_to_async
 
+PAGE_SIZE = 20
 class FirebaseAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
@@ -85,12 +86,12 @@ class FirebaseAuthMiddleware:
 
         if channel.creator_id == user_uid:
             messages = await sync_to_async(list)(
-                ChatMessage.objects.filter(channel=channel_name).order_by("created_at").values("user_id", "message", "created_at")
+                ChatMessage.objects.filter(channel=channel_name).order_by("created_at").values("user_id", "message", "created_at")[:PAGE_SIZE]
             )
         else:
             invite = await sync_to_async(ChannelInvitation.objects.get)(user_id=user_uid, channel_name=channel_name)
             messages = await sync_to_async(list)(
-                ChatMessage.objects.filter(channel=channel_name, created_at__gte=invite.joined_at).order_by("created_at").values("user_id", "message", "created_at")
+                ChatMessage.objects.filter(channel=channel_name, created_at__gte=invite.joined_at).order_by("created_at").values("user_id", "message", "created_at")[:PAGE_SIZE]
             )
 
         for msg in messages:

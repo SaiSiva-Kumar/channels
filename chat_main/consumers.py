@@ -45,8 +45,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def receive(self, text_data):
         now = timezone.now()
-        text_data_json = json.loads(text_data)
-        message = text_data_json['message']
+        data = json.loads(text_data)
+
+        if data.get("action") == "load_older":
+            before_id = data.get("before")
+            older = await self.fetch_older_messages(self.room_name, before_id, 20)
+            await self.send(text_data=json.dumps({"older_messages": older}))
+            return
+
+        message = data.get("message")
         if message.strip() == "@AI what was my last timed out reason":
             record = await self.get_last_timeout(self.user_id, self.room_name)
             if not record:
@@ -55,24 +62,30 @@ class ChatConsumer(AsyncWebsocketConsumer):
             explanation = await explain_timeout_reason(record.timed_out_reason, record.timed_out_reason_message)
             await self.send(text_data=json.dumps({"message": explanation}))
             return
+
         is_timed_out, remaining_time = await self.is_user_timed_out(self.user_id, self.room_name, now)
         if is_timed_out:
             await self.send(text_data=json.dumps({"message": f"You are timed out for {remaining_time} more seconds."}))
             return
+
         channel_info = self.channel_data
         llm_response = await check_message_with_llm(message, channel_info)
+
         if llm_response["status"] == "approved":
             await self.save_message(self.user_id, message, self.room_name)
-            name = self.scope.get('name')
+            name = self.scope.get("name")
             await self.channel_layer.group_send(self.room_group_name, {'type': 'chat_message', 'message': message, 'name': name})
             await self.send(text_data=json.dumps({"message": "Message delivered", "relevance": "Relevant as per channel description"}))
+
         elif llm_response["status"] == "timeout":
             await self.log_timeout(self.user_id, self.room_name, llm_response.get("reason", ""), message)
             await self.send(text_data=json.dumps({"message": "You have been timed out for violating channel rules."}))
+
         elif llm_response["status"] == "banned":
             await self.log_ban(self.user_id, self.room_name, llm_response.get("reason", ""), message)
             await self.send(text_data=json.dumps({"message": "You have been banned for violating channel rules."}))
             await self.close()
+
         else:
             await self.send(text_data=json.dumps({"message": "Your message was removed for being off-topic. Please stay on the channel's subject."}))
             return
@@ -110,3 +123,21 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def get_last_timeout(self, user_id, channel_name):
         return UserModeration.objects.filter(user_id=user_id, channel_name=channel_name, is_banned=False, timed_out_reason__isnull=False).order_by('-timed_out_initial_time').first()
+
+    @database_sync_to_async
+    def fetch_older_messages(self, channel_name, before_id, limit):
+        qs = (
+            ChatMessage.objects
+            .filter(channel=channel_name, id__lt=before_id)
+            .order_by('-id')[:limit]
+        )
+        result = [
+            {
+                "id": m.id,
+                "user_id": m.user_id,
+                "message": m.message,
+                "created_at": m.created_at.isoformat()
+            }
+            for m in reversed(qs)
+        ]
+        return result
