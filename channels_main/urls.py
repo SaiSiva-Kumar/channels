@@ -19,7 +19,6 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('LLM_response/', include('LLM_response.urls')),
     path('create_channels/', include('create_channels.urls')),
     path('users_data/', include('users_data.urls'))
 ]
