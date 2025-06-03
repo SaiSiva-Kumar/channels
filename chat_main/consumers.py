@@ -1,4 +1,5 @@
 import json
+import re
 from urllib.parse import parse_qs
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
@@ -13,7 +14,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
         query_string = self.scope['query_string'].decode()
         params = parse_qs(query_string)
         self.room_name = params.get('channel_name', [''])[0]
-        self.room_group_name = f'chat_{self.room_name}'
+        safe = re.sub(r'[^0-9A-Za-z._-]', '_', self.room_name)
+        self.room_group_name = f'chat_{safe}'
         self.user_id = self.scope.get('user_uid')
         channel_key = f"channel:{self.room_name}"
         count_key = f"{channel_key}:count"
@@ -31,6 +33,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"previous_messages": None}))
 
     async def disconnect(self, close_code):
+        safe = re.sub(r'[^0-9A-Za-z._-]', '_', self.room_name)
+        group = f'chat_{safe}'
         channel_key = f"channel:{self.room_name}"
         count_key = f"{channel_key}:count"
         count = cache.get(count_key, 0)
@@ -41,7 +45,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             cache.delete(count_key)
             cache.delete(channel_key)
             print("channel data is not in cache")
-        await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        await self.channel_layer.group_discard(group, self.channel_name)
 
     async def receive(self, text_data):
         now = timezone.now()
@@ -73,7 +77,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if llm_response["status"] == "approved":
             await self.save_message(self.user_id, message, self.room_name)
-            name = self.scope.get("name")
+            name = self.scope.get('name')
             await self.channel_layer.group_send(self.room_group_name, {'type': 'chat_message', 'message': message, 'name': name})
             await self.send(text_data=json.dumps({"message": "Message delivered", "relevance": "Relevant as per channel description"}))
 
