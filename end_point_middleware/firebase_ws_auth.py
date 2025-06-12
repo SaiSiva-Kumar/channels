@@ -5,6 +5,7 @@ from chat_main.models import ChatMessage, UserModeration
 from asgiref.sync import sync_to_async
 
 PAGE_SIZE = 20
+
 class FirebaseAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
@@ -19,11 +20,7 @@ class FirebaseAuthMiddleware:
         channel_name = query_params.get('channel_name', [None])[0]
 
         if token is None:
-            await send({
-                "type": "websocket.close",
-                "code": 4001
-            })
-            print("token does not exist")
+            await send({"type": "websocket.close", "code": 4001})
             return
 
         try:
@@ -33,29 +30,17 @@ class FirebaseAuthMiddleware:
             scope['user_uid'] = user_uid
             scope['name'] = user_name
         except Exception:
-            await send({
-                "type": "websocket.close",
-                "code": 4003
-            })
-            print("wrong token")
+            await send({"type": "websocket.close", "code": 4003})
             return
 
         if channel_name is None:
-            await send({
-                "type": "websocket.close",
-                "code": 4004
-            })
-            print("channel name does not exit, from user side")
+            await send({"type": "websocket.close", "code": 4004})
             return
 
         try:
             channel = await sync_to_async(CreatorChannelData.objects.get)(channel_name=channel_name)
         except CreatorChannelData.DoesNotExist:
-            await send({
-                "type": "websocket.close",
-                "code": 4005
-            })
-            print("channel name does not exist in database")
+            await send({"type": "websocket.close", "code": 4005})
             return
 
         is_banned = await sync_to_async(UserModeration.objects.filter(
@@ -64,25 +49,27 @@ class FirebaseAuthMiddleware:
             is_banned=True
         ).exists)()
         if is_banned:
-            await send({
-                "type": "websocket.close",
-                "code": 4007
-            })
-            print("user banned")
+            await send({"type": "websocket.close", "code": 4007})
             return
 
-        if channel.creator_id != user_uid:
-            exists = await sync_to_async(ChannelInvitation.objects.filter(
-                user_id=user_uid,
-                channel_name=channel_name
-            ).exists)()
-            if not exists:
-                await send({
-                    "type": "websocket.close",
-                    "code": 4006
-                })
-                print("user does not assoicated with channel")
+        path = scope.get("path", "")
+        is_rag = path.startswith("/ws/rag/")
+
+        if is_rag:
+            if channel.creator_id != user_uid:
+                await send({"type": "websocket.close", "code": 4006})
                 return
+        else:
+            if channel.creator_id != user_uid:
+                exists = await sync_to_async(ChannelInvitation.objects.filter(
+                    user_id=user_uid,
+                    channel_name=channel_name
+                ).exists)()
+                if not exists:
+                    await send({"type": "websocket.close", "code": 4006})
+                    return
+
+        scope["is_creator"] = (channel.creator_id == user_uid)
 
         if channel.creator_id == user_uid:
             messages = await sync_to_async(list)(
