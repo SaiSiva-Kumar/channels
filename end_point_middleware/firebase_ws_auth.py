@@ -50,7 +50,7 @@ class FirebaseAuthMiddleware:
         ).exists)()
         if is_banned:
             await send({"type": "websocket.close", "code": 4007})
-            return
+            return "user banned!"
 
         path = scope.get("path", "")
         is_rag = path.startswith("/ws/rag/")
