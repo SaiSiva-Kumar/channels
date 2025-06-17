@@ -54,6 +54,7 @@ class FirebaseAuthMiddleware:
 
         path = scope.get("path", "")
         is_rag = path.startswith("/ws/rag/")
+        print(is_rag)
 
         if is_rag:
             print("is it really working?")
@@ -61,6 +62,7 @@ class FirebaseAuthMiddleware:
                 await send({"type": "websocket.close", "code": 4006})
                 return
         else:
+            print("why it is not going through creators account?")
             if channel.creator_id != user_uid:
                 exists = await sync_to_async(ChannelInvitation.objects.filter(
                     user_id=user_uid,
