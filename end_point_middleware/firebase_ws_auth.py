@@ -56,6 +56,7 @@ class FirebaseAuthMiddleware:
         is_rag = path.startswith("/ws/rag/")
 
         if is_rag:
+            print("is it really working?")
             if channel.creator_id != user_uid:
                 await send({"type": "websocket.close", "code": 4006})
                 return
