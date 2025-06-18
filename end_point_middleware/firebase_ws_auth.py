@@ -18,6 +18,8 @@ class FirebaseAuthMiddleware:
         query_params = parse_qs(query_string)
         token = query_params.get('token', [None])[0]
         channel_name = query_params.get('channel_name', [None])[0]
+        if channel_name is None:
+            channel_name = scope.get('url_route', {}).get('kwargs', {}).get('channel_name')
 
         if token is None:
             await send({"type": "websocket.close", "code": 4001})
@@ -50,19 +52,16 @@ class FirebaseAuthMiddleware:
         ).exists)()
         if is_banned:
             await send({"type": "websocket.close", "code": 4007})
-            return "user banned!"
+            return
 
         path = scope.get("path", "")
         is_rag = path.startswith("/ws/rag/")
-        print(is_rag)
 
         if is_rag:
-            print("is it really working?")
             if channel.creator_id != user_uid:
                 await send({"type": "websocket.close", "code": 4006})
                 return
         else:
-            print("why it is not going through creators account?")
             if channel.creator_id != user_uid:
                 exists = await sync_to_async(ChannelInvitation.objects.filter(
                     user_id=user_uid,
