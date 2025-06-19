@@ -1,3 +1,4 @@
+import re
 from firebase_admin import auth
 from urllib.parse import parse_qs
 from create_channels.models import ChannelInvitation, CreatorChannelData
@@ -19,7 +20,10 @@ class FirebaseAuthMiddleware:
         token = query_params.get('token', [None])[0]
         channel_name = query_params.get('channel_name', [None])[0]
         if channel_name is None:
-            channel_name = scope.get('url_route', {}).get('kwargs', {}).get('channel_name')
+            path = scope.get('path', '')
+            m = re.match(r'/ws/rag/(?P<channel_name>[^/]+)/', path)
+            if m:
+                channel_name = m.group('channel_name')
 
         if token is None:
             await send({"type": "websocket.close", "code": 4001})
