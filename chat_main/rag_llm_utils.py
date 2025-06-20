@@ -22,7 +22,6 @@ Rules:
 - If it asks who joined, set "names": true; otherwise false.
 - If it asks about time-outs, choose "get_timed_out_users".
 - If it asks about bans, choose "get_banned_users".
-- The "template" must be a Python-style f-string with placeholders {count} or {users}.
 - If the question is not about joins, time-outs, or bans today, respond exactly: {"tool":"none"}
 
 Now process this question:
