@@ -22,7 +22,7 @@ Rules:
 - If it asks who joined, set "names": true; otherwise false.
 - If it asks about time-outs, choose "get_timed_out_users".
 - If it asks about bans, choose "get_banned_users".
-- If the question is not about joins, time-outs, or bans today, respond exactly: {"tool":"none"}
+- If the question is not about joins, time-outs, or bans today, respond exactly: {{ "tool": "none" }}
 
 Now process this question:
 \"\"\"{question}\"\"\"
@@ -48,6 +48,6 @@ Now process this question:
         data = response.json()
         raw = data["choices"][0]["message"]["content"]
         return json.loads(raw)
-    except Exception as e:
+    except Exception:
         logger.exception("RAG classification failed")
         return {"tool": "none"}
