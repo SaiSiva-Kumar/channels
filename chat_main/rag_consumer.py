@@ -1,5 +1,5 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
-from chat_main.rag_llm_utils import classify_creator_question
+from chat_main.rag_llm_utils import classify_and_reply
 
 class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
@@ -12,11 +12,10 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
         })
 
     async def receive_json(self, content, **kwargs):
-        message = content.get("text", "")
-        spec = await classify_creator_question(message)
+        question = content.get("text", "")
+        result = await classify_and_reply(question)
         await self.send_json({
-            "type": "classification",
-            "tool": spec.get("tool"),
-            "args": spec.get("args", {}),
-            "template": spec.get("template", "")
+            "type": "response",
+            "classification": result["classification"],
+            "reply": result["reply"]
         })
