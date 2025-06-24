@@ -11,7 +11,7 @@ def get_new_users(channel_name: str, period: str, names: bool):
         joined_at__date=today
     )
     if names:
-        return list(qs.values_list("user_id", flat=True))
+        return list(qs.values_list("user_name", flat=True))
     return qs.count()
 
 @database_sync_to_async
@@ -22,7 +22,7 @@ def get_timed_out_users(channel_name: str, period: str, names: bool):
         timed_out_initial_time__date=today
     )
     if names:
-        return list(qs.values_list("user_id", flat=True).distinct())
+        return list(qs.values_list("user_name", flat=True).distinct())
     return qs.count()
 
 @database_sync_to_async
@@ -34,5 +34,5 @@ def get_banned_users(channel_name: str, period: str, names: bool):
         banned_at__date=today
     )
     if names:
-        return list(qs.values_list("user_id", flat=True).distinct())
+        return list(qs.values_list("user_name", flat=True).distinct())
     return qs.count()
