@@ -1,5 +1,3 @@
-# chat_main/rag_llm_utils.py
-
 import requests
 import json
 import logging
@@ -14,8 +12,8 @@ def classify_creator_query(question: str) -> dict:
 
 {{
   "classification": {{
-    "tool": "get_new_users" | "get_timed_out_users" | "get_banned_users" | "none",
-    "args": {{ "period": "today", "names": boolean }}
+    "tool":   "get_new_users" | "get_timed_out_users" | "get_banned_users" | "none",
+    "args":   {{ "period": "today", "names": boolean }}
   }},
   "template": string
 }}
@@ -45,7 +43,6 @@ Now process this question:
             headers=headers, json=payload
         )
         if response.status_code != 200:
-            logger.error(f"{response.status_code} {response.text}")
             return {
                 "classification": {"tool": "none", "args": {"period": "today", "names": False}},
                 "template": "Sorry—I can only talk about today’s joins, time-outs, or bans."

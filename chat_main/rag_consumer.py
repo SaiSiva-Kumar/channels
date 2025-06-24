@@ -1,10 +1,6 @@
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from chat_main.rag_llm_utils import classify_creator_query
-from chat_main.rag_tools import (
-    get_new_users,
-    get_timed_out_users,
-    get_banned_users
-)
+from chat_main.rag_tools import get_new_users, get_timed_out_users, get_banned_users
 
 class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
@@ -22,6 +18,7 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
         tool = spec["classification"]["tool"]
         args = spec["classification"]["args"]
         template = spec["template"]
+
         if tool == "get_new_users":
             result = await get_new_users(self.scope["url_route"]["kwargs"]["channel_name"], args["period"], args["names"])
         elif tool == "get_timed_out_users":
@@ -31,8 +28,23 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
         else:
             await self.send_json({"type": "response", "text": template})
             return
+
         if isinstance(result, int):
-            reply = template.format(count=result)
+            try:
+                reply = template.format(count=result)
+            except (IndexError, KeyError):
+                try:
+                    reply = template.format(result)
+                except Exception:
+                    reply = template
         else:
-            reply = template.format(users=", ".join(result))
+            users_str = ", ".join(result)
+            try:
+                reply = template.format(users=users_str)
+            except (IndexError, KeyError):
+                try:
+                    reply = template.format(users_str)
+                except Exception:
+                    reply = template
+
         await self.send_json({"type": "response", "text": reply})
