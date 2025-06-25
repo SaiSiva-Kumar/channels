@@ -11,7 +11,7 @@ def get_new_users(channel_name: str, period: str, names: bool):
         joined_at__date=today
     )
     if names:
-        return list(qs.values_list("user_name", flat=True))
+        return list(qs.values_list("user_id", flat=True))
     return qs.count()
 
 @database_sync_to_async
