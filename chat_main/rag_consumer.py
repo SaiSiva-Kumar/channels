@@ -33,8 +33,8 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
             users = ", ".join(data)
             count = len(data)
         else:
-            count = data
             users = None
+            count = data
 
         try:
             if users is not None:
@@ -42,6 +42,12 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
             else:
                 reply = template.format(count=count)
         except Exception:
-            reply = template
+            try:
+                if users is not None:
+                    reply = template.format(count, users)
+                else:
+                    reply = template.format(count)
+            except Exception:
+                reply = template
 
         await self.send_json({"type": "response", "text": reply})
