@@ -18,33 +18,30 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
         tool = spec["classification"]["tool"]
         args = spec["classification"]["args"]
         template = spec["template"]
+        channel = self.scope["url_route"]["kwargs"]["channel_name"]
 
         if tool == "get_new_users":
-            result = await get_new_users(self.scope["url_route"]["kwargs"]["channel_name"], args["period"], args["names"])
+            data = await get_new_users(channel, args["period"], args["names"])
         elif tool == "get_timed_out_users":
-            result = await get_timed_out_users(self.scope["url_route"]["kwargs"]["channel_name"], args["period"], args["names"])
+            data = await get_timed_out_users(channel, args["period"], args["names"])
         elif tool == "get_banned_users":
-            result = await get_banned_users(self.scope["url_route"]["kwargs"]["channel_name"], args["period"], args["names"])
+            data = await get_banned_users(channel, args["period"], args["names"])
         else:
-            await self.send_json({"type": "response", "text": template})
-            return
+            return await self.send_json({"type": "response", "text": template})
 
-        if isinstance(result, int):
-            try:
-                reply = template.format(count=result)
-            except (IndexError, KeyError):
-                try:
-                    reply = template.format(result)
-                except Exception:
-                    reply = template
+        if isinstance(data, list):
+            users = ", ".join(data)
+            count = len(data)
         else:
-            users_str = ", ".join(result)
-            try:
-                reply = template.format(users=users_str)
-            except (IndexError, KeyError):
-                try:
-                    reply = template.format(users_str)
-                except Exception:
-                    reply = template
+            count = data
+            users = None
+
+        try:
+            if users is not None:
+                reply = template.format(count=count, users=users)
+            else:
+                reply = template.format(count=count)
+        except Exception:
+            reply = template
 
         await self.send_json({"type": "response", "text": reply})
