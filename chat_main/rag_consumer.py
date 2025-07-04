@@ -15,39 +15,35 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
     async def receive_json(self, content, **kwargs):
         question = content.get("text", "").strip()
         spec = await classify_creator_query(question)
-        tool = spec["classification"]["tool"]
-        args = spec["classification"]["args"]
-        template = spec["template"]
+        if "classification" in spec:
+            classification = spec["classification"]
+            tool = classification.get("tool")
+            args = classification.get("args", {})
+            template = spec.get("template", spec.get("reply", ""))
+        else:
+            tool = spec.get("tool")
+            args = spec.get("args", {})
+            template = spec.get("template", spec.get("reply", ""))
         channel = self.scope["url_route"]["kwargs"]["channel_name"]
-
         if tool == "get_new_users":
-            data = await get_new_users(channel, args["period"], args["names"])
+            data = await get_new_users(channel, args.get("date", args.get("period")), args.get("names", False))
         elif tool == "get_timed_out_users":
-            data = await get_timed_out_users(channel, args["period"], args["names"])
+            data = await get_timed_out_users(channel, args.get("date", args.get("period")), args.get("names", False))
         elif tool == "get_banned_users":
-            data = await get_banned_users(channel, args["period"], args["names"])
+            data = await get_banned_users(channel, args.get("date", args.get("period")), args.get("names", False))
         else:
             return await self.send_json({"type": "response", "text": template})
-
         if isinstance(data, list):
             users = ", ".join(data)
             count = len(data)
         else:
-            users = None
             count = data
-
+            users = None
         try:
-            if users is not None:
-                reply = template.format(count=count, users=users)
-            else:
-                reply = template.format(count=count)
+            reply = template.format(count=count, users=users) if users is not None else template.format(count=count)
         except Exception:
             try:
-                if users is not None:
-                    reply = template.format(count, users)
-                else:
-                    reply = template.format(count)
+                reply = template.format(count, users) if users is not None else template.format(count)
             except Exception:
                 reply = template
-
         await self.send_json({"type": "response", "text": reply})
