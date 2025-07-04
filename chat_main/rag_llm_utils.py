@@ -1,6 +1,7 @@
 import requests
 import json
 import logging
+import datetime
 from django.conf import settings
 from channels.db import database_sync_to_async
 
@@ -8,23 +9,29 @@ logger = logging.getLogger("RAG_Classifier")
 
 @database_sync_to_async
 def classify_creator_query(question: str) -> dict:
-    prompt = f"""You are a Channel-Creator Assistant. Your only job is to interpret a creator’s question about today’s channel activity (joins, time-outs, bans) and output valid JSON with two keys:
+    prompt = f"""You are a Channel-Creator Assistant. Your sole job is to interpret a creator’s question about how many users joined, were timed-out, or were banned on a specific date—and optionally provide their names.
 
+Always output valid JSON only, following this exact schema:
 {{
-  "classification": {{
-    "tool":   "get_new_users" | "get_timed_out_users" | "get_banned_users" | "none",
-    "args":   {{ "period": "today", "names": boolean }}
+  "tool":      "get_new_users" | "get_timed_out_users" | "get_banned_users" | "none",
+  "args":      {{
+     "date": "<YYYY-MM-DD>",
+     "names": boolean
   }},
-  "template": string
+  "template":  string
 }}
 
-- "tool" indicates which count to fetch.
-- "period" must be "today".
-- "names" is true if the question asks "who" or "names".
-- "template" is a Python .format() template using {{count}} or {{users}}.
-- If out of scope, set "tool":"none" and "template":"Sorry—I can only talk about today’s joins, time-outs, or bans."
+Rules:
+1. If the question says "yesterday", set "date" to yesterday’s date.
+2. If the question contains an explicit YYYY-MM-DD, use that date.
+3. Otherwise default "date" to today’s date.
+4. If the question asks for names, set "names" to true; otherwise false.
+5. If asking about joins, set "tool" to "get_new_users".
+6. If asking about time-outs, set "tool" to "get_timed_out_users".
+7. If asking about bans, set "tool" to "get_banned_users".
+8. If out of scope, set "tool" to "none" and "template" to "Sorry—I can only answer counts or names of joins, time-outs, or bans for a given date."
 
-Now process this question:
+Now process this question and return the JSON:
 \"\"\"{question}\"\"\"
 """
     headers = {
@@ -40,18 +47,21 @@ Now process this question:
     try:
         response = requests.post(
             "https://openrouter.ai/api/v1/chat/completions",
-            headers=headers, json=payload
+            headers=headers,
+            json=payload
         )
         if response.status_code != 200:
             return {
-                "classification": {"tool": "none", "args": {"period": "today", "names": False}},
-                "template": "Sorry—I can only talk about today’s joins, time-outs, or bans."
+                "tool": "none",
+                "args": {"date": datetime.date.today().isoformat(), "names": False},
+                "template": "Sorry—I can only answer counts or names of joins, time-outs, or bans for a given date."
             }
         raw = response.json()["choices"][0]["message"]["content"]
         return json.loads(raw)
     except Exception:
         logger.exception("RAG classification failed")
         return {
-            "classification": {"tool": "none", "args": {"period": "today", "names": False}},
-            "template": "Sorry—I can only talk about today’s joins, time-outs, or bans."
+            "tool": "none",
+            "args": {"date": datetime.date.today().isoformat(), "names": False},
+            "template": "Sorry—I can only answer counts or names of joins, time-outs, or bans for a given date."
         }
