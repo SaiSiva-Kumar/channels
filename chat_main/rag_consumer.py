@@ -30,24 +30,32 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
             return await self.send_json({"type": "response", "text": template})
 
         if isinstance(data, list):
-            users = ", ".join(data)
             count = len(data)
+            users = ", ".join(data)
         else:
             count = data
             users = None
 
-        try:
-            if users is not None:
-                reply = template.format(count=count, users=users)
+        if count == 0:
+            if tool == "get_new_users":
+                reply = "No users joined today."
+            elif tool == "get_timed_out_users":
+                reply = "No users were timed out today."
             else:
-                reply = template.format(count=count)
-        except Exception:
+                reply = "No users were banned today."
+        else:
             try:
                 if users is not None:
-                    reply = template.format(count, users)
+                    reply = template.format(count=count, users=users)
                 else:
-                    reply = template.format(count)
+                    reply = template.format(count=count)
             except Exception:
-                reply = template
+                try:
+                    if users is not None:
+                        reply = template.format(count, users)
+                    else:
+                        reply = template.format(count)
+                except Exception:
+                    reply = template
 
         await self.send_json({"type": "response", "text": reply})
