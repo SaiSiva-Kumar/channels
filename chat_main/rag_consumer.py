@@ -15,17 +15,17 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
     async def receive_json(self, content, **kwargs):
         question = content.get("text", "").strip()
         spec = await classify_creator_query(question)
-        tool = spec["classification"]["tool"]
-        args = spec["classification"]["args"]
-        template = spec["template"]
-        channel = self.scope["url_route"]["kwargs"]["channel_name"]
+        tool     = spec.get("tool")
+        args     = spec.get("args", {})
+        template = spec.get("template", "")
+        channel  = self.scope["url_route"]["kwargs"]["channel_name"]
 
         if tool == "get_new_users":
-            data = await get_new_users(channel, args["date"], args["names"])
+            data = await get_new_users(channel, args.get("date"), args.get("names", False))
         elif tool == "get_timed_out_users":
-            data = await get_timed_out_users(channel, args["date"], args["names"])
+            data = await get_timed_out_users(channel, args.get("date"), args.get("names", False))
         elif tool == "get_banned_users":
-            data = await get_banned_users(channel, args["date"], args["names"])
+            data = await get_banned_users(channel, args.get("date"), args.get("names", False))
         else:
             return await self.send_json({"type": "response", "text": template})
 
@@ -33,8 +33,8 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
             users = ", ".join(data)
             count = len(data)
         else:
-            users = None
             count = data
+            users = None
 
         try:
             if users is not None:
