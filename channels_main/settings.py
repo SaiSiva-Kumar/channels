@@ -65,7 +65,7 @@ MIDDLEWARE = [
 ]
 
 CORS_ALLOWED_ORIGINS = [
-    "https://channels-ui-xi.vercel.app/",
+    "https://channels-ui-xi.vercel.app",
     "http://localhost:3000"
 ]
 

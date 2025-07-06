@@ -14,7 +14,7 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
 
     async def receive_json(self, content, **kwargs):
         question = content.get("text", "").strip()
-        spec = await classify_creator_query(question)
+        spec = await classify_creator_query(question, self.scope["url_route"]["kwargs"]["channel_name"])
         tool     = spec.get("tool")
         args     = spec.get("args", {})
         template = spec.get("template", "")
@@ -36,26 +36,15 @@ class CreatorRagConsumer(AsyncJsonWebsocketConsumer):
             count = data
             users = None
 
-        if count == 0:
-            if tool == "get_new_users":
-                reply = "No users joined today."
-            elif tool == "get_timed_out_users":
-                reply = "No users were timed out today."
-            else:
-                reply = "No users were banned today."
+        if count == 0 and args.get("names", False):
+            reply = f"No users matched your request on {args.get('date')}."
+        elif count == 0:
+            key = "joined" if tool == "get_new_users" else "timed-out" if tool == "get_timed_out_users" else "banned"
+            reply = f"No users were {key} on {args.get('date')}."
         else:
             try:
-                if users is not None:
-                    reply = template.format(count=count, users=users)
-                else:
-                    reply = template.format(count=count)
-            except Exception:
-                try:
-                    if users is not None:
-                        reply = template.format(count, users)
-                    else:
-                        reply = template.format(count)
-                except Exception:
-                    reply = template
+                reply = template.format(count=count, users=users)
+            except:
+                reply = template
 
         await self.send_json({"type": "response", "text": reply})
