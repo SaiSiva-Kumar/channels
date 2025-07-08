@@ -36,15 +36,14 @@ class JoinChannelView(APIView):
 
         serializer = self.serializer_class(data={"user_id": user_id, "channel_name": channel_name})
         if serializer.is_valid():
-            print("naa love dhaa")
             try:
-                print("dengai")
                 serializer.save()
                 return Response({"Joined": True}, status=status.HTTP_201_CREATED)
             except IntegrityError:
                 return Response({"is_user_exist": True}, status=status.HTTP_409_CONFLICT)
 
         if 'non_field_errors' in serializer.errors:
+            print("which 409")
             return Response({"is_user_exist": True}, status=status.HTTP_409_CONFLICT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
