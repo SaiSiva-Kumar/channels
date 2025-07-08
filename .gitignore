@@ -1,3 +1,6 @@
 explanation.txt
 testing.txt
+rag_consumer.py
+rag_llm_utils.py
+rag_tools.py
 .env
