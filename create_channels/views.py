@@ -38,6 +38,7 @@ class JoinChannelView(APIView):
         if serializer.is_valid():
             try:
                 serializer.save()
+                print("✅ Saved")
                 return Response({"Joined": True}, status=status.HTTP_201_CREATED)
             except IntegrityError:
                 print("409")
