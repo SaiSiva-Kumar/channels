@@ -40,10 +40,10 @@ class JoinChannelView(APIView):
                 serializer.save()
                 return Response({"Joined": True}, status=status.HTTP_201_CREATED)
             except IntegrityError:
+                print("409")
                 return Response({"is_user_exist": True}, status=status.HTTP_409_CONFLICT)
 
         if 'non_field_errors' in serializer.errors:
-            print("which 409")
             return Response({"is_user_exist": True}, status=status.HTTP_409_CONFLICT)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
