@@ -21,7 +21,6 @@ class JoinChannelView(APIView):
 
     def post(self, request):
         user_id = getattr(request, 'user_uid', None)
-        print(user_id)
         channel_name = request.query_params.get('channel_name')
 
         if not channel_name:
@@ -29,7 +28,6 @@ class JoinChannelView(APIView):
 
         try:
             channel = CreatorChannelData.objects.get(channel_name=channel_name)
-            print(channel.channel_name)
         except CreatorChannelData.DoesNotExist:
             return Response({"is_channel_exist": False}, status=status.HTTP_404_NOT_FOUND)
 
@@ -37,6 +35,7 @@ class JoinChannelView(APIView):
             return Response({"creator": True}, status=status.HTTP_200_OK)
 
         serializer = self.serializer_class(data={"user_id": user_id, "channel_name": channel_name})
+        print(bool(serializer))
         if serializer.is_valid():
             try:
                 serializer.save()
