@@ -29,6 +29,7 @@ class JoinChannelView(APIView):
 
         try:
             channel = CreatorChannelData.objects.get(channel_name=channel_name)
+            print(channel)
         except CreatorChannelData.DoesNotExist:
             return Response({"is_channel_exist": False}, status=status.HTTP_404_NOT_FOUND)
 
