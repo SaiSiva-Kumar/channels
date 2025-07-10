@@ -53,9 +53,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         data = json.loads(text_data)
 
         if self.scope.get("is_creator"):
-            print("This message came from creator")
+            print("This message came from creator:", data)
         else:
-            print("This message came from member")
+            print("This message came from member:", data)
 
         if data.get("action") == "load_older":
             before_id = data.get("before")
