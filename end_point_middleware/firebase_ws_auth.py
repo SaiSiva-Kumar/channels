@@ -9,9 +9,6 @@ class FirebaseAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
 
-    def __call__(self, scope):
-        return self.inner(scope)
-
     async def __call__(self, scope, receive, send):
         query_string = scope.get('query_string', b'').decode()
         query_params = parse_qs(query_string)
@@ -83,6 +80,9 @@ class FirebaseAuthMiddleware:
                 })
                 print("user does not assoicated with channel")
                 return
+            scope["is_creator"] = False
+        else:
+            scope["is_creator"] = True
 
         if channel.creator_id == user_uid:
             messages = await sync_to_async(list)(

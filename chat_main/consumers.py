@@ -27,6 +27,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.channel_data = data
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
+        await self.send(text_data=json.dumps({"creator": self.scope.get("is_creator", False)}))
         if self.scope.get("chat_history") is not None:
             await self.send(text_data=json.dumps({"previous_messages": self.scope["chat_history"]}))
         else:
