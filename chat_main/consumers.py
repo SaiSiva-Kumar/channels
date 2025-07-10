@@ -52,6 +52,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         now = timezone.now()
         data = json.loads(text_data)
 
+        if self.scope.get("is_creator"):
+            print("This message came from creator")
+        else:
+            print("This message came from member")
+
         if data.get("action") == "load_older":
             before_id = data.get("before")
             older = await self.fetch_older_messages(self.room_name, before_id, 20)
