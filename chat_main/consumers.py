@@ -57,6 +57,40 @@ class ChatConsumer(AsyncWebsocketConsumer):
         else:
             print("This message came from member:", data)
 
+        if data.get("command") == "time_out_user" or data.get("command") == "ban_user":
+            if not self.scope.get("is_creator"):
+                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+                return
+
+            target_user_id = data.get("user_id")
+            target_username = data.get("username")
+
+            if not target_user_id or not target_username:
+                await self.send(text_data=json.dumps({"error": "Missing user_id or username"}))
+                return
+
+            if data.get("command") == "time_out_user":
+                await self.log_timeout(target_user_id, self.room_name, "manual", f"Timed out by creator: {target_username}")
+                await self.send(text_data=json.dumps({"message": f"user {target_username} has been timed out"}))
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "notify_timeout",
+                        "target_user": target_user_id
+                    }
+                )
+            else:
+                await self.log_ban(target_user_id, self.room_name, "manual", f"Banned by creator: {target_username}")
+                await self.send(text_data=json.dumps({"message": f"user {target_username} has been banned"}))
+                await self.channel_layer.group_send(
+                    self.room_group_name,
+                    {
+                        "type": "notify_ban",
+                        "target_user": target_user_id
+                    }
+                )
+            return
+
         if data.get("action") == "load_older":
             before_id = data.get("before")
             older = await self.fetch_older_messages(self.room_name, before_id, 20)
@@ -111,6 +145,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'user_id': event['user_id'],
             'message': event['message']
         }))
+
+    async def notify_timeout(self, event):
+        if self.user_id == event["target_user"]:
+            await self.send(text_data=json.dumps({"message": "You have been timed out by the creator"}))
+
+    async def notify_ban(self, event):
+        if self.user_id == event["target_user"]:
+            await self.send(text_data=json.dumps({"message": "You have been banned by the creator"}))
+            await self.close()
 
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
