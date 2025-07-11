@@ -2127,6 +2127,12 @@
               <chat>
                 <internalId value="2d62ed0a-e2a5-4a2b-9b73-10788e53d7cc" />
               </chat>
+              <chat>
+                <internalId value="b8c40b16-f807-439a-a08d-8721c168add3" />
+              </chat>
+              <chat>
+                <internalId value="02b6f1f4-3abe-4e1e-94ab-508e9c7ee12b" />
+              </chat>
             </list>
           </chats>
           <defaultLlm>

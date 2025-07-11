@@ -83,9 +83,14 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         if llm_response["status"] == "approved":
             await self.save_message(self.user_id, message, self.room_name)
-            name = self.scope.get('name')
-            await self.channel_layer.group_send(self.room_group_name, {'type': 'chat_message', 'message': message, 'name': name})
-            await self.send(text_data=json.dumps({"message": "Message delivered", "relevance": "Relevant as per channel description"}))
+            await self.channel_layer.group_send(self.room_group_name, {
+                'type': 'chat_message',
+                'message': message,
+                'user_name': self.scope.get('name'),
+                'user_id': self.user_id
+            })
+            await self.send(text_data=json.dumps(
+                {"message": "Message delivered", "relevance": "Relevant as per channel description"}))
 
         elif llm_response["status"] == "timeout":
             await self.log_timeout(self.user_id, self.room_name, llm_response.get("reason", ""), message)
@@ -101,7 +106,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
     async def chat_message(self, event):
-        await self.send(text_data=json.dumps({'name': event['name'], 'message': event['message']}))
+        await self.send(text_data=json.dumps({
+            'user_name': event['user_name'],
+            'user_id': event['user_id'],
+            'message': event['message']
+        }))
 
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
