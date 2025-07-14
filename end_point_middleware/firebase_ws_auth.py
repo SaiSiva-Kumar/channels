@@ -5,9 +5,13 @@ from chat_main.models import ChatMessage, UserModeration
 from asgiref.sync import sync_to_async
 
 PAGE_SIZE = 20
+
 class FirebaseAuthMiddleware:
     def __init__(self, inner):
         self.inner = inner
+
+    def __call__(self, scope):
+        return self.inner(scope)
 
     async def __call__(self, scope, receive, send):
         query_string = scope.get('query_string', b'').decode()
@@ -20,7 +24,6 @@ class FirebaseAuthMiddleware:
                 "type": "websocket.close",
                 "code": 4001
             })
-            print("token does not exist")
             return
 
         try:
@@ -34,7 +37,6 @@ class FirebaseAuthMiddleware:
                 "type": "websocket.close",
                 "code": 4003
             })
-            print("wrong token")
             return
 
         if channel_name is None:
@@ -42,7 +44,6 @@ class FirebaseAuthMiddleware:
                 "type": "websocket.close",
                 "code": 4004
             })
-            print("channel name does not exit, from user side")
             return
 
         try:
@@ -52,7 +53,6 @@ class FirebaseAuthMiddleware:
                 "type": "websocket.close",
                 "code": 4005
             })
-            print("channel name does not exist in database")
             return
 
         is_banned = await sync_to_async(UserModeration.objects.filter(
@@ -65,7 +65,6 @@ class FirebaseAuthMiddleware:
                 "type": "websocket.close",
                 "code": 4007
             })
-            print("user banned")
             return
 
         if channel.creator_id != user_uid:
@@ -78,20 +77,22 @@ class FirebaseAuthMiddleware:
                     "type": "websocket.close",
                     "code": 4006
                 })
-                print("user does not assoicated with channel")
                 return
-            scope["is_creator"] = False
-        else:
-            scope["is_creator"] = True
+
+        scope["is_creator"] = channel.creator_id == user_uid
 
         if channel.creator_id == user_uid:
             messages = await sync_to_async(list)(
-                ChatMessage.objects.filter(channel=channel_name).order_by("created_at").values("user_id", "message", "created_at")[:PAGE_SIZE]
+                ChatMessage.objects.filter(channel=channel_name)
+                .order_by("created_at")
+                .values("id", "user_id", "message", "created_at")[:PAGE_SIZE]
             )
         else:
             invite = await sync_to_async(ChannelInvitation.objects.get)(user_id=user_uid, channel_name=channel_name)
             messages = await sync_to_async(list)(
-                ChatMessage.objects.filter(channel=channel_name, created_at__gte=invite.joined_at).order_by("created_at").values("user_id", "message", "created_at")[:PAGE_SIZE]
+                ChatMessage.objects.filter(channel=channel_name, created_at__gte=invite.joined_at)
+                .order_by("created_at")
+                .values("id", "user_id", "message", "created_at")[:PAGE_SIZE]
             )
 
         for msg in messages:

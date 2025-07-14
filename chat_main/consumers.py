@@ -41,11 +41,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
         count = cache.get(count_key, 0)
         if count > 1:
             cache.set(count_key, count - 1)
-            print("channel data is in cache")
         else:
             cache.delete(count_key)
             cache.delete(channel_key)
-            print("channel data is not in cache")
         await self.channel_layer.group_discard(group, self.channel_name)
 
     async def receive(self, text_data):
@@ -116,9 +114,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
         llm_response = await check_message_with_llm(message, channel_info)
 
         if llm_response["status"] == "approved":
-            await self.save_message(self.user_id, message, self.room_name)
+            msg = await self.save_message(self.user_id, message, self.room_name)
             await self.channel_layer.group_send(self.room_group_name, {
                 'type': 'chat_message',
+                'message_id': msg.id,
                 'message': message,
                 'user_name': self.scope.get('name'),
                 'user_id': self.user_id
@@ -141,6 +140,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def chat_message(self, event):
         await self.send(text_data=json.dumps({
+            'message_id': event['message_id'],
             'user_name': event['user_name'],
             'user_id': event['user_id'],
             'message': event['message']
@@ -157,7 +157,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
-        ChatMessage.objects.create(user_id=user_id, message=message, channel=channel, created_at=timezone.now())
+        return ChatMessage.objects.create(user_id=user_id, message=message, channel=channel, created_at=timezone.now())
 
     @database_sync_to_async
     def log_timeout(self, user_id, channel_name, reason, message):
