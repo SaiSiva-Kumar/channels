@@ -5,6 +5,7 @@ class ChatMessage(models.Model):
     message = models.TextField()
     channel = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
+    deleted = models.BooleanField(default=False)
 
     class Meta:
         db_table = 'messages_data"."chat_message'
