@@ -89,6 +89,27 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 )
             return
 
+        if data.get("command") == "soft_delete":
+            if not self.scope.get("is_creator"):
+                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+                return
+
+            message_id = data.get("message_id")
+            if not message_id:
+                await self.send(text_data=json.dumps({"error": "Missing message_id"}))
+                return
+
+            await self.soft_delete_message(message_id)
+            await self.send(text_data=json.dumps({"message": f"message {message_id} has been soft deleted"}))
+            await self.channel_layer.group_send(
+                self.room_group_name,
+                {
+                    "type": "notify_delete",
+                    "message_id": message_id
+                }
+            )
+            return
+
         if data.get("action") == "load_older":
             before_id = data.get("before")
             older = await self.fetch_older_messages(self.room_name, before_id, 20)
@@ -155,9 +176,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.send(text_data=json.dumps({"message": "You have been banned by the creator"}))
             await self.close()
 
+    async def notify_delete(self, event):
+        await self.send(text_data=json.dumps({"deleted_message_id": event["message_id"]}))
+
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
         return ChatMessage.objects.create(user_id=user_id, message=message, channel=channel, created_at=timezone.now())
+
+    @database_sync_to_async
+    def soft_delete_message(self, message_id):
+        ChatMessage.objects.filter(id=message_id).update(deleted=True)
 
     @database_sync_to_async
     def log_timeout(self, user_id, channel_name, reason, message):
