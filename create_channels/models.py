@@ -17,6 +17,7 @@ class ChannelInvitation(models.Model):
     user_id = models.CharField(max_length=255)
     channel_name = models.CharField(max_length=255)
     joined_at = models.DateTimeField(auto_now_add=True)
+    is_moderator = models.BooleanField(default=False)
 
     class Meta:
         unique_together = ('user_id', 'channel_name')

@@ -100,7 +100,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return
 
             await self.soft_delete_message(message_id)
-            await self.send(text_data=json.dumps({"message": f"message {message_id} has been soft deleted"}))
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -108,6 +107,19 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "message_id": message_id
                 }
             )
+            return
+
+        if data.get("command") == "user_role":
+            if not self.scope.get("is_creator"):
+                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+                return
+
+            target_user_id = data.get("user_id")
+            target_role = data.get("user_role")
+
+            if target_role == "moderator" and target_user_id:
+                await self.make_moderator(target_user_id, self.room_name)
+                await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
             return
 
         if data.get("action") == "load_older":
@@ -186,6 +198,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def soft_delete_message(self, message_id):
         ChatMessage.objects.filter(id=message_id).update(deleted=True)
+
+    @database_sync_to_async
+    def make_moderator(self, user_id, channel_name):
+        from create_channels.models import ChannelInvitation
+        ChannelInvitation.objects.filter(user_id=user_id, channel_name=channel_name).update(is_moderator=True)
 
     @database_sync_to_async
     def log_timeout(self, user_id, channel_name, reason, message):
