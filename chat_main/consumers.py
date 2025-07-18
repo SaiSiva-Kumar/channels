@@ -8,6 +8,7 @@ from datetime import timedelta
 from django.core.cache import cache
 from chat_main.models import ChatMessage, UserModeration
 from chat_main.llm_utils import check_message_with_llm, get_channel_info, explain_timeout_reason
+from create_channels.models import ChannelInvitation
 
 class ChatConsumer(AsyncWebsocketConsumer):
     async def connect(self):
@@ -25,9 +26,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
             cache.set(channel_key, data, 300)
         cache.set(count_key, cache.get(count_key, 0) + 1)
         self.channel_data = data
+        self.is_moderator_flag = await self.is_moderator(self.user_id, self.room_name)
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
         await self.send(text_data=json.dumps({"creator": self.scope.get("is_creator", False)}))
+        await self.send(text_data=json.dumps({"moderator": self.is_moderator_flag}))
         if self.scope.get("chat_history") is not None:
             await self.send(text_data=json.dumps({"previous_messages": self.scope["chat_history"]}))
         else:
@@ -50,14 +53,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
         now = timezone.now()
         data = json.loads(text_data)
 
-        if self.scope.get("is_creator"):
+        if self.scope.get("is_creator") or self.is_moderator_flag:
+            is_privileged = True
+            if self.scope.get("is_creator"):
+                role = "creator"
+            else:
+                role = "moderator"
+        else:
+            is_privileged = False
+            role = "member"
+
+        if role == "creator":
             print("This message came from creator:", data)
+        elif role == "moderator":
+            print("This message came from moderator:", data)
         else:
             print("This message came from member:", data)
 
         if data.get("command") == "time_out_user" or data.get("command") == "ban_user":
-            if not self.scope.get("is_creator"):
-                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+            if not is_privileged:
+                await self.send(text_data=json.dumps({"error": "Only creator or moderator can perform this action"}))
                 return
 
             target_user_id = data.get("user_id")
@@ -68,8 +83,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 return
 
             if data.get("command") == "time_out_user":
-                await self.log_timeout(target_user_id, self.room_name, "manual", f"Timed out by creator: {target_username}")
-                await self.send(text_data=json.dumps({"message": f"user {target_username} has been timed out"}))
+                await self.log_timeout(target_user_id, self.room_name, f"manual by {role}", f"Timed out by {role}: {target_username}")
+                await self.send(text_data=json.dumps({"message": f"user {target_username} has been timed out by {role}"}))
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -78,8 +93,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     }
                 )
             else:
-                await self.log_ban(target_user_id, self.room_name, "manual", f"Banned by creator: {target_username}")
-                await self.send(text_data=json.dumps({"message": f"user {target_username} has been banned"}))
+                await self.log_ban(target_user_id, self.room_name, f"manual by {role}", f"Banned by {role}: {target_username}")
+                await self.send(text_data=json.dumps({"message": f"user {target_username} has been banned by {role}"}))
                 await self.channel_layer.group_send(
                     self.room_group_name,
                     {
@@ -90,8 +105,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             return
 
         if data.get("command") == "soft_delete":
-            if not self.scope.get("is_creator"):
-                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+            if not is_privileged:
+                await self.send(text_data=json.dumps({"error": "Only creator or moderator can perform this action"}))
                 return
 
             message_id = data.get("message_id")
@@ -181,11 +196,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def notify_timeout(self, event):
         if self.user_id == event["target_user"]:
-            await self.send(text_data=json.dumps({"message": "You have been timed out by the creator"}))
+            await self.send(text_data=json.dumps({"message": "You have been timed out"}))
 
     async def notify_ban(self, event):
         if self.user_id == event["target_user"]:
-            await self.send(text_data=json.dumps({"message": "You have been banned by the creator"}))
+            await self.send(text_data=json.dumps({"message": "You have been banned"}))
             await self.close()
 
     async def notify_delete(self, event):
@@ -201,8 +216,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def make_moderator(self, user_id, channel_name):
-        from create_channels.models import ChannelInvitation
         ChannelInvitation.objects.filter(user_id=user_id, channel_name=channel_name).update(is_moderator=True)
+
+    @database_sync_to_async
+    def is_moderator(self, user_id, channel_name):
+        return ChannelInvitation.objects.filter(user_id=user_id, channel_name=channel_name, is_moderator=True).exists()
 
     @database_sync_to_async
     def log_timeout(self, user_id, channel_name, reason, message):
