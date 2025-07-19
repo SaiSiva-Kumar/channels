@@ -67,12 +67,29 @@ class ChatConsumer(AsyncWebsocketConsumer):
             is_privileged = False
             role = "member"
 
-        if role == "creator":
-            print("This message came from creator:", data)
-        elif role == "moderator":
-            print("This message came from moderator:", data)
-        else:
-            print("This message came from member:", data)
+        if data.get("command") == "user_role":
+            if not self.scope.get("is_creator"):
+                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
+                return
+
+            target_user_id = data.get("user_id")
+            target_role = data.get("user_role")
+
+            if target_role == "moderator" and target_user_id:
+                already_mod = await self.is_moderator(target_user_id, self.room_name)
+                if already_mod:
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is already a moderator"}))
+                else:
+                    await self.make_moderator(target_user_id, self.room_name)
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
+            if target_role == "revert role" and target_user_id:
+                already_mod = await self.is_moderator(target_user_id, self.room_name)
+                if not already_mod:
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is not a moderator"}))
+                else:
+                    await self.revert_moderator(target_user_id, self.room_name)
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is no longer a moderator"}))
+            return
 
         if data.get("command") == "time_out_user" or data.get("command") == "ban_user":
             if not is_privileged:
@@ -126,23 +143,6 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "message_id": message_id
                 }
             )
-            return
-
-        if data.get("command") == "user_role":
-            if not self.scope.get("is_creator"):
-                await self.send(text_data=json.dumps({"error": "Only creator can perform this action"}))
-                return
-
-            target_user_id = data.get("user_id")
-            target_role = data.get("user_role")
-
-            if target_role == "moderator" and target_user_id:
-                already_mod = await self.is_moderator(target_user_id, self.room_name)
-                if already_mod:
-                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is already a moderator"}))
-                else:
-                    await self.make_moderator(target_user_id, self.room_name)
-                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
             return
 
         if data.get("action") == "load_older":
@@ -227,6 +227,10 @@ class ChatConsumer(AsyncWebsocketConsumer):
     @database_sync_to_async
     def make_moderator(self, user_id, channel_name):
         ChannelInvitation.objects.filter(user_id=user_id, channel_name=channel_name).update(is_moderator=True)
+
+    @database_sync_to_async
+    def revert_moderator(self, user_id, channel_name):
+        ChannelInvitation.objects.filter(user_id=user_id, channel_name=channel_name).update(is_moderator=False)
 
     @database_sync_to_async
     def is_moderator(self, user_id, channel_name):
