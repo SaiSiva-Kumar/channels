@@ -133,8 +133,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             target_role = data.get("user_role")
 
             if target_role == "moderator" and target_user_id:
-                await self.make_moderator(target_user_id, self.room_name)
-                await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
+                already_mod = await self.is_moderator(target_user_id, self.room_name)
+                if already_mod:
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is already a moderator"}))
+                else:
+                    await self.make_moderator(target_user_id, self.room_name)
+                    await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
             return
 
         if data.get("action") == "load_older":
