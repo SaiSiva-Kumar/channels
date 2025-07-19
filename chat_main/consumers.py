@@ -89,6 +89,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 else:
                     await self.revert_moderator(target_user_id, self.room_name)
                     await self.send(text_data=json.dumps({"message": f"user {target_user_id} is no longer a moderator"}))
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "notify_revert",
+                            "target_user": target_user_id
+                        }
+                    )
             return
 
         if data.get("command") == "time_out_user" or data.get("command") == "ban_user":
@@ -215,6 +222,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     async def notify_delete(self, event):
         await self.send(text_data=json.dumps({"deleted_message_id": event["message_id"]}))
+
+    async def notify_revert(self, event):
+        if self.user_id == event["target_user"]:
+            self.is_moderator_flag = False
+            await self.send(text_data=json.dumps({"message": "Your moderator role has been revoked"}))
 
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
