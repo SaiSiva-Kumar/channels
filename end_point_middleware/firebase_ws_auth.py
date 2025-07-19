@@ -82,7 +82,6 @@ class FirebaseAuthMiddleware:
         scope["is_creator"] = channel.creator_id == user_uid
 
         if channel.creator_id == user_uid:
-            scope["role"] = "creator"
             messages = await sync_to_async(list)(
                 ChatMessage.objects.filter(channel=channel_name)
                 .order_by("created_at")
@@ -90,10 +89,6 @@ class FirebaseAuthMiddleware:
             )
         else:
             invite = await sync_to_async(ChannelInvitation.objects.get)(user_id=user_uid, channel_name=channel_name)
-            if invite.is_moderator:
-                scope["role"] = "moderator"
-            else:
-                scope["role"] = "member"
             messages = await sync_to_async(list)(
                 ChatMessage.objects.filter(channel=channel_name, created_at__gte=invite.joined_at)
                 .order_by("created_at")
