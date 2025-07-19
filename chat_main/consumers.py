@@ -29,8 +29,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.is_moderator_flag = await self.is_moderator(self.user_id, self.room_name)
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        await self.send(text_data=json.dumps({"creator": self.scope.get("is_creator", False)}))
-        await self.send(text_data=json.dumps({"moderator": self.is_moderator_flag}))
+        if self.scope.get("is_creator", False):
+            await self.send(text_data=json.dumps({"creator": True}))
+        elif self.is_moderator_flag:
+            await self.send(text_data=json.dumps({"moderator": True}))
+        else:
+            await self.send(text_data=json.dumps({"creator": False, "moderator": False}))
         if self.scope.get("chat_history") is not None:
             await self.send(text_data=json.dumps({"previous_messages": self.scope["chat_history"]}))
         else:
