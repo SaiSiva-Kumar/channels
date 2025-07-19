@@ -29,12 +29,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         self.is_moderator_flag = await self.is_moderator(self.user_id, self.room_name)
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
-        if self.scope.get("is_creator", False):
-            await self.send(text_data=json.dumps({"creator": True}))
-        elif self.is_moderator_flag:
-            await self.send(text_data=json.dumps({"moderator": True}))
-        else:
-            await self.send(text_data=json.dumps({"creator": False, "moderator": False}))
+        await self.send(text_data=json.dumps({"role": self.scope.get("role", "member")}))
         if self.scope.get("chat_history") is not None:
             await self.send(text_data=json.dumps({"previous_messages": self.scope["chat_history"]}))
         else:
@@ -176,7 +171,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 'message_id': msg.id,
                 'message': message,
                 'user_name': self.scope.get('name'),
-                'user_id': self.user_id
+                'user_id': self.user_id,
+                'role': self.scope.get("role", "member")
             })
             await self.send(text_data=json.dumps(
                 {"message": "Message delivered", "relevance": "Relevant as per channel description"}))
@@ -199,7 +195,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             'message_id': event['message_id'],
             'user_name': event['user_name'],
             'user_id': event['user_id'],
-            'message': event['message']
+            'message': event['message'],
+            'role': event['role']
         }))
 
     async def notify_timeout(self, event):
