@@ -82,6 +82,13 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 else:
                     await self.make_moderator(target_user_id, self.room_name)
                     await self.send(text_data=json.dumps({"message": f"user {target_user_id} is now a moderator"}))
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "notify_moderator",
+                            "target_user": target_user_id
+                        }
+                    )
             if target_role == "revert role" and target_user_id:
                 already_mod = await self.is_moderator(target_user_id, self.room_name)
                 if not already_mod:
@@ -227,6 +234,11 @@ class ChatConsumer(AsyncWebsocketConsumer):
         if self.user_id == event["target_user"]:
             self.is_moderator_flag = False
             await self.send(text_data=json.dumps({"message": "Your moderator role has been revoked"}))
+
+    async def notify_moderator(self, event):
+        if self.user_id == event["target_user"]:
+            self.is_moderator_flag = True
+            await self.send(text_data=json.dumps({"message": "You are now a moderator"}))
 
     @database_sync_to_async
     def save_message(self, user_id, message, channel):
